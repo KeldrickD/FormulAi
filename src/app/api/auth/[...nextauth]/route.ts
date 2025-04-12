@@ -2,16 +2,33 @@ import { NextAuthOptions } from "next-auth";
 import NextAuth from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
 import axios from "axios";
+import { JWT } from "next-auth/jwt";
+import { Session } from "next-auth";
+
+// Custom token type
+interface ExtendedToken extends JWT {
+  accessToken?: string;
+  accessTokenExpires?: number;
+  refreshToken?: string;
+  error?: string;
+  user?: any;
+}
+
+// Custom session type
+interface ExtendedSession extends Session {
+  accessToken?: string;
+  error?: string;
+}
 
 // Function to refresh Google token
-async function refreshAccessToken(token: any) {
+async function refreshAccessToken(token: ExtendedToken): Promise<ExtendedToken> {
   try {
     const url = "https://oauth2.googleapis.com/token";
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID || "",
       client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
       grant_type: "refresh_token",
-      refresh_token: token.refreshToken,
+      refresh_token: token.refreshToken || "",
     });
 
     const response = await axios.post(url, params.toString(), {
@@ -61,6 +78,7 @@ const authOptions: NextAuthOptions = {
       // Initial sign in
       if (account && user) {
         return {
+          ...token,
           accessToken: account.access_token,
           accessTokenExpires: account.expires_at ? account.expires_at * 1000 : 0, // Convert to ms
           refreshToken: account.refresh_token,
@@ -68,28 +86,35 @@ const authOptions: NextAuthOptions = {
         };
       }
 
+      const extendedToken = token as ExtendedToken;
+
       // Return previous token if the access token has not expired yet
-      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
+      if (extendedToken.accessTokenExpires && 
+          typeof extendedToken.accessTokenExpires === 'number' && 
+          Date.now() < extendedToken.accessTokenExpires) {
         return token;
       }
 
       // Access token has expired, try to refresh it
-      return refreshAccessToken(token);
+      return refreshAccessToken(extendedToken);
     },
     async session({ session, token }) {
-      if (token.accessToken) {
-        session.accessToken = token.accessToken as string;
+      const extendedSession = session as ExtendedSession;
+      const extendedToken = token as ExtendedToken;
+
+      if (extendedToken.accessToken) {
+        extendedSession.accessToken = extendedToken.accessToken;
       }
       
-      if (token.error) {
-        session.error = token.error;
+      if (extendedToken.error) {
+        extendedSession.error = extendedToken.error;
       }
       
-      if (token.user) {
-        session.user = token.user;
+      if (extendedToken.user) {
+        session.user = extendedToken.user;
       }
       
-      return session;
+      return extendedSession;
     },
   },
   pages: {
@@ -98,6 +123,18 @@ const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NODE_ENV === "production" ? ".getformulai.com" : undefined
+      }
+    }
+  }
 };
 
 const handler = NextAuth(authOptions);

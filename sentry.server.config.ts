@@ -25,4 +25,9 @@ Sentry.init({
     }
     return event;
   },
+  // Set allowed domains for tracing
+  tracePropagationTargets: [
+    'localhost', 
+    'getformulai.com'
+  ],
 }); 

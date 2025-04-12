@@ -2,6 +2,8 @@
 
 FormulAi is a web application that allows users to interact with spreadsheets using natural language. The app connects to Google Sheets and uses AI to interpret user requests, generate formulas, create charts, and more.
 
+**Official Website**: [getformulai.com](https://getformulai.com)
+
 ## Features
 
 - **Google Sheets Integration**: Connect to your Google Sheets account via OAuth
@@ -31,7 +33,7 @@ FormulAi is a web application that allows users to interact with spreadsheets us
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/formulai.git
+   git clone https://github.com/KeldrickD/formulai.git
    cd formulai
    ```
 
@@ -60,6 +62,10 @@ FormulAi is a web application that allows users to interact with spreadsheets us
    - "Calculate the average sales by product category"
    - "Create a pie chart of top 10 customers"
 4. Review the AI-generated result and approve to apply changes
+
+## Deployment
+
+The application is deployed at [getformulai.com](https://getformulai.com).
 
 ## Project Structure
 
