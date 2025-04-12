@@ -3,10 +3,15 @@ import { getServerSession } from "next-auth";
 import OpenAI from "openai";
 import { getSpreadsheetStructure, extractSheetMetadata } from "@/lib/utils/sheets";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client if API key is available
+const getOpenAIClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("OpenAI API key is not configured");
+    return null;
+  }
+  return new OpenAI({ apiKey });
+};
 
 export async function POST(req: Request) {
   try {
@@ -26,6 +31,17 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
+      );
+    }
+
+    // Get OpenAI client
+    const openai = getOpenAIClient();
+    
+    // Check if OpenAI client is initialized
+    if (!openai) {
+      return NextResponse.json(
+        { error: "AI service is not configured. Please set the OPENAI_API_KEY environment variable." },
+        { status: 503 }
       );
     }
 
