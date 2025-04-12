@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import OpenAI from "openai";
 import { getSpreadsheetStructure, extractSheetMetadata } from "@/lib/utils/sheets";
 
+// Mark this route as dynamic since it uses server-side logic
+export const dynamic = 'force-dynamic';
+
 // Initialize OpenAI client if API key is available
 const getOpenAIClient = () => {
   const apiKey = process.env.OPENAI_API_KEY;

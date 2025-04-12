@@ -5,6 +5,9 @@ import axios from "axios";
 import { JWT } from "next-auth/jwt";
 import { Session } from "next-auth";
 
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic';
+
 // Custom token type
 interface ExtendedToken extends JWT {
   accessToken?: string;

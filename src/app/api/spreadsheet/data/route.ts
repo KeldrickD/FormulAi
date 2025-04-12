@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getSpreadsheetStructure, extractSheetMetadata } from "@/lib/utils/sheets";
 
+// Mark this route as dynamic since it uses headers and server-side logic
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     // Check authentication
