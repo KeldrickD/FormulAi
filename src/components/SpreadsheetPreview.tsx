@@ -5,6 +5,11 @@ import { Check, X, Loader2 } from "lucide-react";
 
 type SpreadsheetPreviewProps = {
   data?: any;
+  metadata?: {
+    headers: string[];
+    dataTypes: string[];
+    sampleData: any[];
+  } | null;
   analysisResult?: {
     analysis: string;
     action: string;
@@ -12,14 +17,17 @@ type SpreadsheetPreviewProps = {
     preview: string;
   };
   isLoading?: boolean;
+  error?: string | null;
   onApprove?: () => void;
   onReject?: () => void;
 };
 
 export default function SpreadsheetPreview({
   data,
+  metadata,
   analysisResult,
   isLoading = false,
+  error = null,
   onApprove,
   onReject,
 }: SpreadsheetPreviewProps) {
@@ -34,7 +42,17 @@ export default function SpreadsheetPreview({
     );
   }
 
-  if (!data && !analysisResult) {
+  if (error) {
+    return (
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="bg-red-50 p-6 text-center text-red-600">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!data && !analysisResult && !metadata) {
     return (
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-100 p-6 text-center text-gray-500">
@@ -87,31 +105,53 @@ export default function SpreadsheetPreview({
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Column A
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Column B
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Column C
-                  </th>
+                  {metadata?.headers ? (
+                    metadata.headers.map((header, index) => (
+                      <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {header}
+                      </th>
+                    ))
+                  ) : (
+                    <>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Column A
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Column B
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Column C
+                      </th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {[1, 2, 3, 4, 5].map((row) => (
-                  <tr key={row} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Sample data A{row}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Sample data B{row}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Sample data C{row}
-                    </td>
-                  </tr>
-                ))}
+                {metadata?.sampleData ? (
+                  metadata.sampleData.map((row, rowIndex) => (
+                    <tr key={rowIndex} className="hover:bg-gray-50">
+                      {Object.values(row).map((cell, cellIndex) => (
+                        <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {String(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  [1, 2, 3, 4, 5].map((row) => (
+                    <tr key={row} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        Sample data A{row}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        Sample data B{row}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        Sample data C{row}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
