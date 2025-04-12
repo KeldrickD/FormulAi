@@ -100,7 +100,7 @@ export default function AutoDashboard() {
                   </button>
                 </div>
               ) : (
-                <CsvUploader onCsvParsed={handleCsvParsed} />
+                <CsvUploader onParsed={handleCsvParsed} onCancel={() => {}} />
               )}
             </div>
             
