@@ -356,13 +356,13 @@ function DashboardContent() {
                 {history.map((item, index) => (
                   <div key={index} className="p-3 border border-gray-200 rounded-lg">
                     <div className="flex justify-between">
-                      <div className="font-medium">{item.prompt}</div>
+                      <div className="font-medium">{item.query}</div>
                       <div className="text-xs text-gray-500">
                         {new Date(item.timestamp).toLocaleString()}
                       </div>
                     </div>
                     <div className="mt-2 text-sm text-gray-600">
-                      {item.analysis}
+                      {item.result?.analysis}
                     </div>
                   </div>
                 ))}
