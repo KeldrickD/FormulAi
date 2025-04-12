@@ -1,0 +1,144 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import OpenAI from "openai";
+import { getSpreadsheetStructure, extractSheetMetadata } from "@/lib/utils/sheets";
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export async function POST(req: Request) {
+  try {
+    // Check authentication
+    const session = await getServerSession();
+    if (!session || !session.accessToken) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Get request data
+    const { prompt, spreadsheetId, sheetName } = await req.json();
+
+    if (!prompt || !spreadsheetId) {
+      return NextResponse.json(
+        { error: "Missing required parameters" },
+        { status: 400 }
+      );
+    }
+
+    // Fetch spreadsheet data using the Google Sheets API
+    const spreadsheetData = await getSpreadsheetStructure(
+      spreadsheetId,
+      session.accessToken
+    );
+
+    // Extract metadata (headers, data types, sample data)
+    const metadata = extractSheetMetadata(spreadsheetData);
+
+    // Create a JSON representation of the spreadsheet structure for the AI
+    const sheetStructureJson = JSON.stringify({
+      title: spreadsheetData.properties.title,
+      sheets: spreadsheetData.sheets.map((sheet: any) => ({
+        title: sheet.properties.title,
+        gridProperties: sheet.properties.gridProperties,
+      })),
+      currentSheet: sheetName || metadata.sheetTitle,
+      headers: metadata.headers,
+      dataTypes: metadata.dataTypes,
+      sampleData: metadata.sampleData.slice(0, 3), // Limit to 3 rows for context
+    }, null, 2);
+
+    // Enhanced system prompt with detailed context
+    const systemPrompt = `
+      You are FormulAi, an advanced AI assistant specialized in spreadsheet analysis and formula generation for Google Sheets.
+      
+      SPREADSHEET STRUCTURE:
+      ${sheetStructureJson}
+      
+      Your task is to analyze the user's request and generate the appropriate Google Sheets actions, formulas, or visualization code.
+      
+      IMPORTANT GUIDELINES:
+      1. For formulas, use valid Google Sheets syntax
+      2. For charts, specify the chart type and data range
+      3. Consider the data types when suggesting formulas
+      4. For any cell references, use A1 notation
+      5. If you need to create a pivot table, specify the source data range and pivot fields
+      6. If suggesting data filtering, specify the column and filter criteria
+      
+      Output a JSON object with these fields:
+      - "analysis": A concise explanation of what you understood from the request
+      - "action": The type of action to take (one of: "formula", "chart", "pivot", "filter", "formatting")
+      - "implementation": The specific formula, chart configuration, or other settings (provide complete Google Sheets syntax)
+      - "preview": A description of what the result will look like
+      - "range": The target cell or range where this should be applied (in A1 notation)
+      - "additionalSteps": [Optional] Array of follow-up steps if this is a multi-step process
+      
+      For charts, include these additional fields in implementation:
+      - "type": The chart type (e.g., "BAR", "PIE", "LINE")
+      - "dataRange": The data range for the chart
+      - "title": Chart title
+      - "options": Any additional chart options
+      
+      BE PRECISE: Users will directly apply your suggestions to their spreadsheets.
+    `;
+
+    // Send to OpenAI for analysis
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: `I'm working with the sheet "${sheetName || metadata.sheetTitle}" and I want to: ${prompt}`
+        }
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = completion.choices[0].message.content;
+    
+    // Validate the response format
+    try {
+      const parsedResult = JSON.parse(result || "{}");
+      
+      // Check for required fields
+      if (!parsedResult.analysis || !parsedResult.action || !parsedResult.implementation) {
+        throw new Error("Incomplete response from AI");
+      }
+      
+      return NextResponse.json(parsedResult);
+    } catch (parseError) {
+      console.error("Error parsing OpenAI response:", parseError);
+      return NextResponse.json(
+        { error: "Failed to generate a valid response" },
+        { status: 500 }
+      );
+    }
+
+  } catch (error: any) {
+    console.error("Error analyzing spreadsheet:", error);
+    
+    // Handle various error types
+    if (error.response?.status === 401) {
+      return NextResponse.json(
+        { error: "Authentication expired. Please log in again." },
+        { status: 401 }
+      );
+    }
+    
+    if (error.response?.status === 403) {
+      return NextResponse.json(
+        { error: "You don't have permission to access this spreadsheet." },
+        { status: 403 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: error.message || "Failed to analyze spreadsheet" },
+      { status: 500 }
+    );
+  }
+} 
