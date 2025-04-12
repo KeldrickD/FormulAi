@@ -93,7 +93,7 @@ export default function Forecasts() {
                   </button>
                 </div>
               ) : (
-                <CsvUploader onCsvParsed={handleCsvParsed} />
+                <CsvUploader onParsed={handleCsvParsed} onCancel={() => {}} />
               )}
             </div>
             
