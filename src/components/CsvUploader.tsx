@@ -5,11 +5,12 @@ import { Upload, File, X, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 interface CsvUploaderProps {
-  onCsvParsed: (data: any) => void;
+  onParsed: (data: any) => void;
+  onCancel: () => void;
   maxSize?: number; // in MB
 }
 
-export default function CsvUploader({ onCsvParsed, maxSize = 5 }: CsvUploaderProps) {
+export default function CsvUploader({ onParsed, onCancel, maxSize = 5 }: CsvUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -69,7 +70,7 @@ export default function CsvUploader({ onCsvParsed, maxSize = 5 }: CsvUploaderPro
         columnCount: headers.length
       };
       
-      onCsvParsed(result);
+      onParsed(result);
       toast.success(`Successfully parsed ${result.rowCount} rows of data`);
     } catch (err: any) {
       setError(err.message || 'Failed to parse CSV file');
@@ -77,7 +78,7 @@ export default function CsvUploader({ onCsvParsed, maxSize = 5 }: CsvUploaderPro
     } finally {
       setIsProcessing(false);
     }
-  }, [maxSize, onCsvParsed]);
+  }, [maxSize, onParsed]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -177,6 +178,15 @@ export default function CsvUploader({ onCsvParsed, maxSize = 5 }: CsvUploaderPro
           )}
         </div>
       )}
+
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={onCancel}
+          className="text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg font-medium"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 } 
