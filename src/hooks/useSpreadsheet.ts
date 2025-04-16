@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { analyzeSpreadsheet, applyChanges, fetchSpreadsheetData, undoLastChange } from "../lib/utils/api";
 import { CsvData } from "../types/csv";
@@ -44,6 +44,14 @@ export function useSpreadsheet() {
     range?: string;
     timestamp: string;
   } | null>(null);
+  const [isGAuth, setIsGAuth] = useState<boolean>(false);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const authStatus = localStorage.getItem('google_auth_status');
+      setIsGAuth(authStatus === 'authenticated');
+    }
+  }, []);
 
   // Function to fetch spreadsheet data
   async function loadSpreadsheet(spreadsheetId: string, sheetName?: string) {
@@ -97,12 +105,29 @@ export function useSpreadsheet() {
 
   // Function to check if user is authenticated with Google
   function isGoogleAuthenticated() {
-    // Since we now use httpOnly cookies set by the server, we need to infer
-    // authentication status differently. We'll check localStorage for a flag
-    // that we'll set after successful redirects.
-    if (typeof window === 'undefined') return false;
+    // Check for server-side rendering
+    if (typeof window === 'undefined') {
+      console.log('isGoogleAuthenticated called on server side');
+      return false;
+    }
     
+    // First check our state
+    if (isGAuth) {
+      return true;
+    }
+    
+    // Then check localStorage
     const authStatus = localStorage.getItem('google_auth_status');
+    console.log('Google auth check:', { 
+      authStatus, 
+      isAuthenticated: authStatus === 'authenticated'
+    });
+    
+    // Update our state if needed
+    if (authStatus === 'authenticated' && !isGAuth) {
+      setIsGAuth(true);
+    }
+    
     return authStatus === 'authenticated';
   }
 

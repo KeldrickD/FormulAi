@@ -40,6 +40,32 @@ function DashboardContent() {
   } = useSpreadsheet();
   const [showCsvUploader, setShowCsvUploader] = useState(false);
   
+  // Add direct check for authentication status
+  const [directAuth, setDirectAuth] = useState(false);
+  
+  useEffect(() => {
+    // Check for direct auth status from localStorage
+    if (typeof window !== 'undefined') {
+      const status = localStorage.getItem('google_auth_status') === 'authenticated';
+      setDirectAuth(status);
+      console.log('Direct auth check result:', status);
+    }
+  }, []);
+  
+  // Force refresh on auth state change
+  useEffect(() => {
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'google_auth_status') {
+        console.log('Auth storage changed, refreshing state');
+        setDirectAuth(event.newValue === 'authenticated');
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('storage', () => {});
+    };
+  }, []);
+
   // Mock data for demonstration - will be replaced with real API data
   const recentSheets = [
     { id: "sheet1", name: "Q1 2023 Financial Report", lastModified: "2 days ago" },
@@ -58,6 +84,12 @@ function DashboardContent() {
       console.log('Auth success detected, setting authenticated status');
       localStorage.setItem('google_auth_status', 'authenticated');
       
+      // Force a refresh of the page to ensure the auth state is picked up
+      setTimeout(() => {
+        console.log('Reloading page to apply authentication state');
+        window.location.href = '/dashboard';
+      }, 1000);
+      
       // Show success toast
       showToast({ message: "Connected to Google Sheets successfully", type: "success" });
     }
@@ -66,6 +98,14 @@ function DashboardContent() {
       loadSpreadsheet(spreadsheetId, sheetName || undefined);
     }
   }, [searchParams]);
+
+  // Add debug log to check auth state
+  useEffect(() => {
+    console.log('Auth state check:', {
+      isAuthenticated: isGoogleAuthenticated(),
+      localStorage: typeof window !== 'undefined' ? localStorage.getItem('google_auth_status') : null
+    });
+  }, [isGoogleAuthenticated]);
 
   // Update URL when selecting a sheet
   const handleSelectSheet = (sheetId: string) => {
@@ -158,7 +198,7 @@ function DashboardContent() {
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Connect</h2>
             <div className="space-y-3">
-              {isGoogleAuthenticated() ? (
+              {(isGoogleAuthenticated() || directAuth) ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                     <span className="flex items-center text-green-700">
