@@ -24,11 +24,12 @@ export async function analyzeSpreadsheet(
         spreadsheetId,
         sheetName,
       }),
+      credentials: 'include' // Include cookies in the request
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || "Failed to analyze spreadsheet");
+      throw new Error(error.message || error.error || "Failed to analyze spreadsheet");
     }
 
     return await response.json();

@@ -62,6 +62,12 @@ export default function SpreadsheetPreview({
     );
   }
 
+  // Display full dataset or just sample
+  const displayData = data?.gridData || 
+    (metadata?.sampleData && metadata.headers 
+      ? [metadata.headers, ...metadata.sampleData] 
+      : null);
+
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       {/* Tabs */}
@@ -101,9 +107,9 @@ export default function SpreadsheetPreview({
       {/* Content */}
       <div className="p-4">
         {view === "table" && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   {metadata?.headers ? (
                     metadata.headers.map((header, index) => (
@@ -127,14 +133,25 @@ export default function SpreadsheetPreview({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {metadata?.sampleData ? (
-                  metadata.sampleData.map((row, rowIndex) => (
+                {displayData ? (
+                  // Skip the first row if it contains headers (when showing gridData)
+                  (data?.gridData ? displayData.slice(1) : displayData).map((row, rowIndex) => (
                     <tr key={rowIndex} className="hover:bg-gray-50">
-                      {Object.values(row).map((cell, cellIndex) => (
-                        <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {String(cell)}
-                        </td>
-                      ))}
+                      {Array.isArray(row) ? 
+                        // Handle array format
+                        row.map((cell, cellIndex) => (
+                          <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {String(cell)}
+                          </td>
+                        ))
+                        :
+                        // Handle object format
+                        metadata?.headers?.map((header, cellIndex) => (
+                          <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {String(row[header] || '')}
+                          </td>
+                        ))
+                      }
                     </tr>
                   ))
                 ) : (
