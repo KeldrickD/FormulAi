@@ -1,15 +1,37 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { handleGoogleSheetsError } from "@/lib/utils/error-handling";
 import axios from "axios";
 
 export async function POST(req: Request) {
   try {
-    // Check authentication
-    const session = await getServerSession();
-    if (!session || !session.accessToken) {
+    // Get token from cookies instead of session
+    const cookieStore = cookies();
+    const googleTokensCookie = cookieStore.get('google_tokens');
+    
+    if (!googleTokensCookie?.value) {
+      console.error("No Google auth tokens found in cookies");
       return NextResponse.json(
-        { error: "Authentication required" },
+        { error: "Authentication required. Please connect to Google Sheets." },
+        { status: 401 }
+      );
+    }
+    
+    let tokens;
+    try {
+      tokens = JSON.parse(googleTokensCookie.value);
+    } catch (e) {
+      console.error("Error parsing Google tokens from cookie:", e);
+      return NextResponse.json(
+        { error: "Invalid authentication data. Please reconnect to Google Sheets." },
+        { status: 401 }
+      );
+    }
+    
+    if (!tokens.access_token) {
+      console.error("No access token found in Google tokens");
+      return NextResponse.json(
+        { error: "Missing access token. Please reconnect to Google Sheets." },
         { status: 401 }
       );
     }
@@ -53,7 +75,7 @@ export async function POST(req: Request) {
       { values },
       {
         headers: {
-          Authorization: `Bearer ${session.accessToken}`,
+          Authorization: `Bearer ${tokens.access_token}`,
           "Content-Type": "application/json",
         },
       }
