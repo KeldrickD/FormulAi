@@ -61,11 +61,12 @@ export async function applyChanges(
         sheetName,
         changes,
       }),
+      credentials: 'include' // Include cookies in the request
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || "Failed to apply changes");
+      throw new Error(error.message || error.error || "Failed to apply changes");
     }
 
     return await response.json();
@@ -93,7 +94,9 @@ async function backupSheetState(
     params.append("sheetName", sheetName);
     params.append("range", changes.range);
 
-    const response = await fetch(`/api/spreadsheet/data?${params.toString()}`);
+    const response = await fetch(`/api/spreadsheet/data?${params.toString()}`, {
+      credentials: 'include' // Include cookies in the request
+    });
 
     if (!response.ok) {
       console.error("Failed to backup sheet state");
@@ -172,11 +175,12 @@ export async function undoLastChange(
         range: stateToRestore.changes.range,
         previousData: stateToRestore.data,
       }),
+      credentials: 'include' // Include cookies in the request
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || "Failed to undo changes");
+      throw new Error(error.message || error.error || "Failed to undo changes");
     }
 
     // Remove this state from the history after successful restoration
@@ -205,11 +209,13 @@ export async function fetchSpreadsheetData(
     if (sheetName) params.append("sheetName", sheetName);
     if (range) params.append("range", range);
 
-    const response = await fetch(`/api/spreadsheet/data?${params.toString()}`);
+    const response = await fetch(`/api/spreadsheet/data?${params.toString()}`, {
+      credentials: 'include' // Include cookies in the request
+    });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || "Failed to fetch spreadsheet data");
+      throw new Error(error.message || error.error || "Failed to fetch spreadsheet data");
     }
 
     return await response.json();
@@ -224,11 +230,13 @@ export async function fetchSpreadsheetData(
  */
 export async function getRecentSpreadsheets() {
   try {
-    const response = await fetch("/api/spreadsheet/recent");
+    const response = await fetch("/api/spreadsheet/recent", {
+      credentials: 'include' // Include cookies in the request
+    });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || "Failed to fetch recent spreadsheets");
+      throw new Error(error.message || error.error || "Failed to fetch recent spreadsheets");
     }
 
     return await response.json();
