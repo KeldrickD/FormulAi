@@ -10,8 +10,37 @@ const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_REDIRECT_URI
 );
 
+// Simple in-memory cache
+type CacheEntry = {
+  data: any;
+  timestamp: number;
+};
+
+type ApiCache = {
+  [key: string]: CacheEntry;
+};
+
+let apiCache: ApiCache = {};
+
+// Cache duration (10 minutes)
+const CACHE_DURATION_MS = 10 * 60 * 1000;
+
+// Instead of using setInterval which doesn't work well in serverless functions,
+// we'll clean up old cache entries on each request
+function cleanupCache() {
+  const now = Date.now();
+  for (const key in apiCache) {
+    if (now - apiCache[key].timestamp > CACHE_DURATION_MS) {
+      delete apiCache[key];
+    }
+  }
+}
+
 export async function POST(request: Request) {
   try {
+    // Clean up expired cache entries
+    cleanupCache();
+    
     // Parse request body
     const body = await request.json();
     const { spreadsheetId, sheetName } = body;
@@ -22,6 +51,16 @@ export async function POST(request: Request) {
     }
 
     console.log('Processing request for spreadsheet:', spreadsheetId, 'sheet:', sheetName || 'default');
+
+    // Create a cache key based on the spreadsheet ID and sheet name
+    const cacheKey = `${spreadsheetId}:${sheetName || 'default'}`;
+    const now = Date.now();
+
+    // Check if we have a valid cache entry
+    if (apiCache[cacheKey] && (now - apiCache[cacheKey].timestamp < CACHE_DURATION_MS)) {
+      console.log('Returning cached data for:', cacheKey);
+      return NextResponse.json(apiCache[cacheKey].data);
+    }
 
     // Get tokens from cookies
     const cookieStore = cookies();
@@ -101,14 +140,22 @@ export async function POST(request: Request) {
     const values = gridResponse.data.values || [];
     
     if (values.length === 0) {
-      return NextResponse.json({
+      const responseData = {
         spreadsheetTitle: spreadsheet.data.properties?.title,
         sheets: sheetList,
         currentSheet: targetSheet,
         headers: [],
         types: [],
         values: []
-      });
+      };
+      
+      // Cache the response
+      apiCache[cacheKey] = {
+        data: responseData,
+        timestamp: now
+      };
+      
+      return NextResponse.json(responseData);
     }
 
     // Extract headers and infer types from first row
@@ -131,15 +178,24 @@ export async function POST(request: Request) {
 
     console.log('Successfully processed spreadsheet data');
     
-    // Return data
-    return NextResponse.json({
+    // Prepare the response data
+    const responseData = {
       spreadsheetTitle: spreadsheet.data.properties?.title,
       sheets: sheetList,
       currentSheet: targetSheet,
       headers,
       types,
       values: values.slice(1, 6) // Return first 5 rows as sample
-    });
+    };
+    
+    // Cache the response
+    apiCache[cacheKey] = {
+      data: responseData,
+      timestamp: now
+    };
+    
+    // Return data
+    return NextResponse.json(responseData);
     
   } catch (error: any) {
     console.error('Error accessing Google Sheets:', error);

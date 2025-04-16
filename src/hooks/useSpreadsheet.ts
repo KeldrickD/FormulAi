@@ -46,6 +46,17 @@ export function useSpreadsheet() {
   } | null>(null);
   const [isGAuth, setIsGAuth] = useState<boolean>(false);
   
+  // Add cache for spreadsheet data
+  const [apiCallCache, setApiCallCache] = useState<{
+    [key: string]: {
+      data: SheetData;
+      timestamp: number;
+    }
+  }>({});
+  
+  // Cache expiration time (10 minutes)
+  const CACHE_EXPIRATION_MS = 10 * 60 * 1000;
+  
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const authStatus = localStorage.getItem('google_auth_status');
@@ -55,6 +66,25 @@ export function useSpreadsheet() {
 
   // Function to fetch spreadsheet data
   async function loadSpreadsheet(spreadsheetId: string, sheetName?: string) {
+    // Generate a cache key based on spreadsheet ID and sheet name
+    const cacheKey = `${spreadsheetId}:${sheetName || 'default'}`;
+    
+    // Check if we have cached data that isn't expired
+    const cachedData = apiCallCache[cacheKey];
+    const now = Date.now();
+    
+    if (cachedData && (now - cachedData.timestamp) < CACHE_EXPIRATION_MS) {
+      console.log("Using cached spreadsheet data for:", spreadsheetId);
+      setData(cachedData.data);
+      if (sheetName) {
+        setSelectedSheet(sheetName);
+      } else if (cachedData.data.metadata?.sheetTitle) {
+        setSelectedSheet(cachedData.data.metadata.sheetTitle);
+      }
+      return cachedData.data;
+    }
+    
+    // If not cached or expired, proceed with API call
     setIsLoading(true);
     setError(null);
     
@@ -104,6 +134,15 @@ export function useSpreadsheet() {
         }
       };
       
+      // Store in cache
+      setApiCallCache(prevCache => ({
+        ...prevCache,
+        [cacheKey]: {
+          data: processedData,
+          timestamp: now
+        }
+      }));
+      
       // Set the data state
       setData(processedData);
       console.log("State updated with sheet data:", processedData.spreadsheetTitle);
@@ -133,6 +172,11 @@ export function useSpreadsheet() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Function to clear cached data
+  function clearCache() {
+    setApiCallCache({});
   }
 
   // Function to check if user is authenticated with Google
@@ -407,21 +451,23 @@ export function useSpreadsheet() {
     isLoading,
     error,
     data,
-    selectedSheet,
     analysisResult,
     history,
-    canUndo,
+    selectedSheet,
+    isGAuth,
     lastChangeInfo,
-    isGoogleAuthenticated,
-    checkGoogleAuth,
-    getAuthUrl,
     loadSpreadsheet,
-    loadCsvData,
+    checkGoogleAuth,
+    isGoogleAuthenticated,
+    getAuthUrl,
     selectSheet,
     analyzeWithPrompt,
     applyAnalysisResult,
     undoLastAppliedChange,
     clearAnalysisResult,
-    clearCurrentData
+    clearError,
+    loadCsvData,
+    clearCurrentData,
+    clearCache
   };
 } 

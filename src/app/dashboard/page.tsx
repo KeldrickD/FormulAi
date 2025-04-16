@@ -77,7 +77,12 @@ function DashboardContent() {
     { id: "sheet3", name: "Product Sales Analysis", lastModified: "3 weeks ago" },
   ];
 
-  // Load spreadsheet from URL params on initial load
+  // Inside the DashboardContent component, near the top add these lines
+  const [lastLoadedSpreadsheetId, setLastLoadedSpreadsheetId] = useState<string | null>(null);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
+  const THROTTLE_TIME_MS = 5000; // 5 seconds between API calls
+
+  // Replace the useEffect for loading spreadsheet from URL params
   useEffect(() => {
     const spreadsheetId = searchParams.get("spreadsheetId");
     const sheetName = searchParams.get("sheetName");
@@ -103,9 +108,9 @@ function DashboardContent() {
           
           // Try loading a default spreadsheet if one is available
           const testSpreadsheetId = '13l6YSycQbnU-0Y-4TOA_VoN6ABDbcd_jFJ03r6JXA9M'; // This is the ID from console logs
-          if (!spreadsheetId) {
+          if (!spreadsheetId && !lastLoadedSpreadsheetId) {
             console.log('Attempting to load default spreadsheet:', testSpreadsheetId);
-            loadSpreadsheet(testSpreadsheetId);
+            loadSpreadsheetThrottled(testSpreadsheetId);
           }
           
           // Reload page after a slight delay to apply authentication state
@@ -126,30 +131,44 @@ function DashboardContent() {
     // Try to load spreadsheet from URL parameter
     if (spreadsheetId) {
       console.log('Loading spreadsheet from URL parameter:', spreadsheetId);
-      loadSpreadsheet(spreadsheetId, sheetName || undefined)
-        .then(result => {
-          if (!result) {
-            console.error('Failed to load spreadsheet from URL parameter');
-            showToast({ message: "Failed to load spreadsheet. Please try again.", type: "error" });
-          }
-        })
-        .catch(error => {
-          console.error('Error loading spreadsheet:', error);
-          showToast({ message: "Error loading spreadsheet: " + error.message, type: "error" });
-        });
+      loadSpreadsheetThrottled(spreadsheetId, sheetName || undefined);
     } 
     // If no spreadsheet in URL and we're authenticated, try loading a default spreadsheet
-    else if (isGoogleAuthenticated() || directAuth) {
+    else if ((isGoogleAuthenticated() || directAuth) && !data && !lastLoadedSpreadsheetId) {
       // Try loading a default spreadsheet
       const testSpreadsheetId = '13l6YSycQbnU-0Y-4TOA_VoN6ABDbcd_jFJ03r6JXA9M'; // This is the ID from console logs
       console.log('Attempting to load default spreadsheet:', testSpreadsheetId);
-      loadSpreadsheet(testSpreadsheetId)
-        .catch(error => {
-          console.error('Error loading default spreadsheet:', error);
-          // Don't show an error toast here as this is a fallback attempt
-        });
+      loadSpreadsheetThrottled(testSpreadsheetId);
     }
-  }, [searchParams, loadSpreadsheet, isGoogleAuthenticated, directAuth]);
+  }, [searchParams, loadSpreadsheet, isGoogleAuthenticated, directAuth, data, lastLoadedSpreadsheetId]);
+
+  // Add throttled version of loadSpreadsheet
+  const loadSpreadsheetThrottled = (spreadsheetId: string, sheetName?: string) => {
+    // If this is the same spreadsheet we just loaded recently, don't reload
+    if (spreadsheetId === lastLoadedSpreadsheetId && Date.now() - lastLoadTime < THROTTLE_TIME_MS) {
+      console.log('Throttling spreadsheet load, already loaded recently:', spreadsheetId);
+      return Promise.resolve(null);
+    }
+    
+    // Set the last loaded spreadsheet ID and time
+    setLastLoadedSpreadsheetId(spreadsheetId);
+    setLastLoadTime(Date.now());
+    
+    // Call the original loadSpreadsheet function
+    return loadSpreadsheet(spreadsheetId, sheetName)
+      .then(result => {
+        if (!result) {
+          console.error('Failed to load spreadsheet');
+          showToast({ message: "Failed to load spreadsheet. Please try again.", type: "error" });
+        }
+        return result;
+      })
+      .catch(error => {
+        console.error('Error loading spreadsheet:', error);
+        showToast({ message: "Error loading spreadsheet: " + (error.message || 'Unknown error'), type: "error" });
+        return null;
+      });
+  };
 
   // Add debug log to check auth state
   useEffect(() => {
@@ -180,7 +199,7 @@ function DashboardContent() {
         router.push(`/dashboard?spreadsheetId=${sheetId}&sheetName=${sheet.name}`);
         selectSheet(sheet.name);
       } else {
-        loadSpreadsheet(sheetId);
+        loadSpreadsheetThrottled(sheetId);
       }
     }
   };
