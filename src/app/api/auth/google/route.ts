@@ -29,6 +29,24 @@ export async function GET(request: Request) {
     console.log('Attempting to exchange code for tokens');
     const { tokens } = await oauth2Client.getToken(code);
     console.log('Successfully obtained tokens:', Object.keys(tokens).join(', '));
+    
+    // Verify the tokens by making a test API call
+    try {
+      oauth2Client.setCredentials(tokens);
+      
+      // Try to access user info as a test
+      const oauth2 = google.oauth2({
+        auth: oauth2Client,
+        version: 'v2'
+      });
+      
+      const userInfoResponse = await oauth2.userinfo.get();
+      console.log('Token validation successful, user email:', userInfoResponse.data.email);
+    } catch (verifyError) {
+      console.error('Token validation failed:', verifyError);
+      // Continue anyway, as we still want to return the tokens
+    }
+    
     return NextResponse.json({ tokens });
   } catch (error: any) {
     console.error('Error getting tokens:', error);

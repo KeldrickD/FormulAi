@@ -51,6 +51,16 @@ function DashboardContent() {
   useEffect(() => {
     const spreadsheetId = searchParams.get("spreadsheetId");
     const sheetName = searchParams.get("sheetName");
+    const authSuccess = searchParams.get("auth") === "success";
+    
+    // Set auth status in localStorage if auth was successful
+    if (authSuccess && typeof window !== 'undefined') {
+      console.log('Auth success detected, setting authenticated status');
+      localStorage.setItem('google_auth_status', 'authenticated');
+      
+      // Show success toast
+      showToast({ message: "Connected to Google Sheets successfully", type: "success" });
+    }
     
     if (spreadsheetId) {
       loadSpreadsheet(spreadsheetId, sheetName || undefined);

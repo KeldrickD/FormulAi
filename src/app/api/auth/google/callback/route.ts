@@ -44,15 +44,17 @@ export async function GET(request: Request) {
       value: JSON.stringify(responseData.tokens),
       path: '/',
       maxAge: 3600, // 1 hour
-      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'lax'
     });
     
     console.log('Stored tokens in cookie and redirecting to dashboard');
     
-    // Redirect to dashboard
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    // Add timestamp to prevent caching and trigger the auth detection logic
+    const timestamp = Date.now();
+    
+    // Redirect to dashboard with auth success parameter
+    return NextResponse.redirect(new URL(`/dashboard?auth=success&t=${timestamp}`, request.url));
   } catch (error: any) {
     console.error('Error in Google callback:', error);
     return NextResponse.redirect(new URL(`/dashboard?error=auth_failed&message=${encodeURIComponent(error.message || 'Unknown error')}`, request.url));

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { analyzeSpreadsheet, applyChanges, fetchSpreadsheetData, undoLastChange } from "../lib/utils/api";
 import { CsvData } from "../types/csv";
-import { getGoogleAuthUrl, getGoogleTokensFromCookie } from "../lib/googleAuth";
+import { getGoogleAuthUrl } from "../lib/googleAuth";
 
 interface SpreadsheetHistory {
   id: string;
@@ -92,20 +92,6 @@ export function useSpreadsheet() {
       return null;
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  // Function to get Google tokens from cookie
-  function getGoogleTokensFromCookie() {
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('google_tokens='));
-    if (!tokenCookie) return null;
-    
-    try {
-      return JSON.parse(decodeURIComponent(tokenCookie.split('=')[1]));
-    } catch (error) {
-      console.error('Error parsing Google tokens:', error);
-      return null;
     }
   }
 
