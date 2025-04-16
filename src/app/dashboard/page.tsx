@@ -34,7 +34,7 @@ function DashboardContent() {
     applyAnalysisResult,
     clearAnalysisResult,
     isGoogleAuthenticated,
-    getGoogleAuthUrl,
+    getAuthUrl,
     clearCurrentData
   } = useSpreadsheet();
   const [showCsvUploader, setShowCsvUploader] = useState(false);
@@ -183,7 +183,7 @@ function DashboardContent() {
                 </div>
               ) : (
                 <a
-                  href={getGoogleAuthUrl()}
+                  href={getAuthUrl()}
                   className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
                 >
                   <span className="flex items-center">
