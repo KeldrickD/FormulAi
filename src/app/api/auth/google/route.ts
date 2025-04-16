@@ -12,17 +12,40 @@ const oauth2Client = new OAuth2Client(
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
+  
+  console.log('Google auth API received code request');
+  console.log('OAuth client config:', {
+    clientId: process.env.GOOGLE_CLIENT_ID ? 'set' : 'not set',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'set' : 'not set',
+    redirectUri: process.env.GOOGLE_REDIRECT_URI
+  });
 
   if (!code) {
+    console.error('No code provided in request');
     return NextResponse.json({ error: 'No code provided' }, { status: 400 });
   }
 
   try {
+    console.log('Attempting to exchange code for tokens');
     const { tokens } = await oauth2Client.getToken(code);
+    console.log('Successfully obtained tokens:', Object.keys(tokens).join(', '));
     return NextResponse.json({ tokens });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting tokens:', error);
-    return NextResponse.json({ error: 'Failed to get tokens' }, { status: 500 });
+    
+    // Extract detailed error information
+    const errorDetails = {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data
+    };
+    
+    console.error('Error details:', JSON.stringify(errorDetails, null, 2));
+    
+    return NextResponse.json({ 
+      error: 'Failed to get tokens', 
+      details: errorDetails 
+    }, { status: 500 });
   }
 }
 
@@ -31,21 +54,32 @@ export async function POST(request: Request) {
     const { tokens } = await request.json();
     
     if (!tokens) {
+      console.error('No tokens provided in request body');
       return NextResponse.json({ error: 'No tokens provided' }, { status: 400 });
     }
 
+    console.log('Setting credentials for token verification/refresh');
     oauth2Client.setCredentials(tokens);
     
     // Check if token is expired
     const { expiry_date } = tokens;
     if (expiry_date && Date.now() >= expiry_date) {
+      console.log('Token expired, refreshing');
       const { credentials } = await oauth2Client.refreshAccessToken();
+      console.log('Token refreshed successfully');
       return NextResponse.json({ tokens: credentials });
     }
     
+    console.log('Token is still valid');
     return NextResponse.json({ tokens });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error refreshing tokens:', error);
-    return NextResponse.json({ error: 'Failed to refresh tokens' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to refresh tokens',
+      details: {
+        message: error.message,
+        code: error.code
+      }
+    }, { status: 500 });
   }
 } 
