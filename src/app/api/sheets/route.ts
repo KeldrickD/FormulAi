@@ -1,110 +1,147 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 import { cookies } from 'next/headers';
+
+// Initialize OAuth2 client
+const oauth2Client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
 
 export async function POST(request: Request) {
   try {
-    const { spreadsheetId, sheetName } = await request.json();
-    
+    // Parse request body
+    const body = await request.json();
+    const { spreadsheetId, sheetName } = body;
+
     if (!spreadsheetId) {
-      return NextResponse.json({ error: 'Missing spreadsheet ID' }, { status: 400 });
+      console.error('No spreadsheet ID provided');
+      return NextResponse.json({ error: 'No spreadsheet ID provided' }, { status: 400 });
     }
+
+    console.log('Processing request for spreadsheet:', spreadsheetId, 'sheet:', sheetName || 'default');
 
     // Get tokens from cookies
     const cookieStore = cookies();
-    const googleTokensCookie = cookieStore.get('google_tokens');
+    const tokensCookie = cookieStore.get('google_tokens');
     
-    if (!googleTokensCookie?.value) {
+    if (!tokensCookie || !tokensCookie.value) {
+      console.error('No Google tokens found in cookies');
       return NextResponse.json({ error: 'Not authenticated with Google' }, { status: 401 });
     }
-    
+
     let tokens;
     try {
-      tokens = JSON.parse(googleTokensCookie.value);
-    } catch (e) {
-      return NextResponse.json({ error: 'Invalid Google token format' }, { status: 401 });
+      tokens = JSON.parse(tokensCookie.value);
+      console.log('Retrieved tokens from cookies:', Object.keys(tokens).join(', '));
+    } catch (error) {
+      console.error('Failed to parse tokens from cookie:', error);
+      return NextResponse.json({ error: 'Invalid authentication tokens' }, { status: 401 });
     }
-    
-    // Set up Google auth with tokens from cookie
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials(tokens);
-    
-    // Check if token is expired
-    const { access_token, expiry_date } = tokens;
-    
-    if (!access_token) {
-      return NextResponse.json({ error: 'No access token available' }, { status: 401 });
-    }
-    
-    // TODO: Handle token refresh if needed
-    
-    const sheets = google.sheets({ version: 'v4', auth });
-    
-    // Get spreadsheet metadata and structure
-    const [spreadsheet, sheetsList] = await Promise.all([
-      sheets.spreadsheets.get({ spreadsheetId }),
-      sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' })
-    ]);
+
+    // Set up Google Sheets API
+    oauth2Client.setCredentials(tokens);
+    const sheets = google.sheets({ version: 'v4', auth: oauth2Client });
+
+    // Get spreadsheet details
+    console.log('Fetching spreadsheet metadata');
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId,
+      includeGridData: false,
+    });
+
+    // Get sheet list
+    const sheetList = spreadsheet.data.sheets?.map(sheet => ({
+      id: sheet.properties?.sheetId,
+      title: sheet.properties?.title,
+    })) || [];
+
+    console.log('Available sheets:', sheetList.map(s => s.title).join(', '));
 
     // Determine which sheet to use
-    const targetSheetName = sheetName || sheetsList.data.sheets?.[0]?.properties?.title;
-    
-    if (!targetSheetName) {
-      return NextResponse.json({ error: 'No sheets found in spreadsheet' }, { status: 400 });
+    let targetSheet = null;
+    if (sheetName) {
+      targetSheet = sheetList.find(sheet => sheet.title === sheetName);
+      if (!targetSheet) {
+        console.warn(`Requested sheet "${sheetName}" not found, defaulting to first sheet`);
+      }
     }
+
+    // Default to first sheet if target not found or not specified
+    if (!targetSheet && sheetList.length > 0) {
+      targetSheet = sheetList[0];
+      console.log(`Using default sheet: ${targetSheet.title}`);
+    }
+
+    if (!targetSheet) {
+      return NextResponse.json({ error: 'No sheets found in spreadsheet' }, { status: 404 });
+    }
+
+    // Get grid data
+    const range = `${targetSheet.title}!A1:Z1000`; // Reasonable limit
+    console.log('Fetching grid data for range:', range);
     
-    // Get actual grid data for the specified sheet
-    const range = `${targetSheetName}!A1:Z1000`; // A reasonable range to fetch
     const gridResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range
+      range,
     });
+
+    const values = gridResponse.data.values || [];
     
-    const gridData = gridResponse.data.values || [];
-    const headers = gridData.length > 0 ? gridData[0] : [];
-    const rows = gridData.slice(1); // Skip headers
+    if (values.length === 0) {
+      return NextResponse.json({
+        spreadsheetTitle: spreadsheet.data.properties?.title,
+        sheets: sheetList,
+        currentSheet: targetSheet,
+        headers: [],
+        types: [],
+        values: []
+      });
+    }
+
+    // Extract headers and infer types from first row
+    const headers = values[0];
+    const firstDataRow = values.length > 1 ? values[1] : [];
     
-    // Infer data types from the first row of data
-    const dataTypes = headers.map((header, index) => {
-      const sampleValue = rows.length > 0 ? rows[0][index] : '';
-      if (!isNaN(Number(sampleValue))) return 'number';
-      if (sampleValue === 'true' || sampleValue === 'false') return 'boolean';
+    // Simple type inference
+    const types = firstDataRow.map((value, index) => {
+      if (value === undefined || value === null || value === '') return 'string';
+      if (!isNaN(Number(value))) return 'number';
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(value)) return 'date';
+      if (/^(true|false)$/i.test(value)) return 'boolean';
       return 'string';
     });
-    
-    // Sample data for preview (first 5 rows)
-    const sampleData = rows.slice(0, 5);
 
-    return NextResponse.json({
-      spreadsheetId,
-      spreadsheetTitle: spreadsheet.data.properties?.title || 'Untitled',
-      sheets: sheetsList.data.sheets?.map(sheet => ({
-        sheetId: String(sheet.properties?.sheetId || ''),
-        title: sheet.properties?.title || ''
-      })),
-      sheetName: targetSheetName,
-      metadata: {
-        sheetTitle: targetSheetName,
-        headers,
-        dataTypes,
-        sampleData
-      },
-      gridData
-    });
-  } catch (error: any) {
-    console.error('Error fetching spreadsheet:', error);
+    // Fill in missing types with default
+    while (types.length < headers.length) {
+      types.push('string');
+    }
+
+    console.log('Successfully processed spreadsheet data');
     
-    // More detailed error handling
-    if (error.response) {
-      const status = error.response.status;
-      const message = error.response.data?.error?.message || "Unknown Google API error";
-      
-      return NextResponse.json(
-        { error: message },
-        { status: status || 500 }
-      );
+    // Return data
+    return NextResponse.json({
+      spreadsheetTitle: spreadsheet.data.properties?.title,
+      sheets: sheetList,
+      currentSheet: targetSheet,
+      headers,
+      types,
+      values: values.slice(1, 6) // Return first 5 rows as sample
+    });
+    
+  } catch (error: any) {
+    console.error('Error accessing Google Sheets:', error);
+    
+    // Check if this is an auth error
+    if (error.code === 401 || error.message?.includes('auth')) {
+      return NextResponse.json({ error: 'Authentication failed', details: error.message }, { status: 401 });
     }
     
-    return NextResponse.json({ error: 'Failed to fetch spreadsheet' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to access Google Sheets',
+      details: error.message
+    }, { status: 500 });
   }
 } 

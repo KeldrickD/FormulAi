@@ -36,14 +36,14 @@ export default function Home() {
           </div>
           
           <div className="rounded-lg overflow-hidden shadow-2xl border border-blue-400/20 max-w-4xl mx-auto">
-            <Image 
+        <Image
               src="/demo.gif" 
               alt="FormulAi Demo" 
               width={800} 
               height={450}
               className="w-full" 
-              priority
-            />
+          priority
+        />
           </div>
         </div>
       </section>
@@ -204,7 +204,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <Image 
+          <Image
                 src="/images/logo.png" 
                 alt="FormulAi Logo" 
                 width={160} 

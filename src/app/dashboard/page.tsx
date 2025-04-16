@@ -35,6 +35,7 @@ function DashboardContent() {
     applyAnalysisResult,
     clearAnalysisResult,
     isGoogleAuthenticated,
+    checkGoogleAuth,
     getAuthUrl,
     clearCurrentData
   } = useSpreadsheet();
@@ -43,14 +44,17 @@ function DashboardContent() {
   // Add direct check for authentication status
   const [directAuth, setDirectAuth] = useState(false);
   
+  // Check auth on initial load
   useEffect(() => {
-    // Check for direct auth status from localStorage
-    if (typeof window !== 'undefined') {
-      const status = localStorage.getItem('google_auth_status') === 'authenticated';
-      setDirectAuth(status);
-      console.log('Direct auth check result:', status);
+    async function verifyAuth() {
+      // Perform a direct API check for authentication status
+      const isAuthenticated = await checkGoogleAuth();
+      setDirectAuth(isAuthenticated);
+      console.log('Initial auth check result:', isAuthenticated);
     }
-  }, []);
+    
+    verifyAuth();
+  }, [checkGoogleAuth]);
   
   // Force refresh on auth state change
   useEffect(() => {
@@ -79,19 +83,37 @@ function DashboardContent() {
     const sheetName = searchParams.get("sheetName");
     const authSuccess = searchParams.get("auth") === "success";
     
-    // Set auth status in localStorage if auth was successful
+    // Check for auth redirection and verify the cookie exists
     if (authSuccess && typeof window !== 'undefined') {
       console.log('Auth success detected, setting authenticated status');
-      localStorage.setItem('google_auth_status', 'authenticated');
       
-      // Force a refresh of the page to ensure the auth state is picked up
-      setTimeout(() => {
-        console.log('Reloading page to apply authentication state');
-        window.location.href = '/dashboard';
-      }, 1000);
-      
-      // Show success toast
-      showToast({ message: "Connected to Google Sheets successfully", type: "success" });
+      // Force an API call to verify authentication is working
+      // This ensures the cookie is valid before setting localStorage
+      fetch('/api/auth/check', { 
+        method: 'GET',
+        credentials: 'include'
+      }).then(response => {
+        if (response.ok) {
+          // Only set authenticated if the check succeeds
+          localStorage.setItem('google_auth_status', 'authenticated');
+          console.log('Authentication verified successfully');
+          
+          // Show success toast
+          showToast({ message: "Connected to Google Sheets successfully", type: "success" });
+          
+          // Reload page after a slight delay to apply authentication state
+          setTimeout(() => {
+            console.log('Reloading page to apply authentication state');
+            window.location.href = '/dashboard';
+          }, 1000);
+        } else {
+          console.error('Authentication verification failed');
+          showToast({ message: "Authentication failed. Please try again.", type: "error" });
+        }
+      }).catch(error => {
+        console.error('Error verifying authentication:', error);
+        showToast({ message: "Authentication verification error", type: "error" });
+      });
     }
     
     if (spreadsheetId) {

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { analyzeSpreadsheet, applyChanges, fetchSpreadsheetData, undoLastChange } from "../lib/utils/api";
 import { CsvData } from "../types/csv";
-import { getGoogleAuthUrl } from "../lib/googleAuth";
+import { getGoogleAuthUrl, refreshTokensIfNeeded } from "../lib/googleAuth";
 
 interface SpreadsheetHistory {
   id: string;
@@ -59,8 +59,10 @@ export function useSpreadsheet() {
     setError(null);
     
     try {
-      // No need to get tokens from cookie, as they're httpOnly now
-      // Instead, our API routes will use the cookie directly
+      console.log("Loading spreadsheet:", spreadsheetId, sheetName);
+      
+      // First ensure tokens are refreshed if needed
+      await refreshTokensIfNeeded();
       
       // Fetch spreadsheet data using the API route
       const sheetsResponse = await fetch('/api/sheets', {
@@ -72,13 +74,16 @@ export function useSpreadsheet() {
           spreadsheetId,
           sheetName,
         }),
+        credentials: 'include' // Include cookies in the request
       });
 
       if (!sheetsResponse.ok) {
-        throw new Error('Failed to fetch spreadsheet');
+        const errorData = await sheetsResponse.json();
+        throw new Error(errorData.error || 'Failed to fetch spreadsheet');
       }
 
       const sheetData = await sheetsResponse.json();
+      console.log("Spreadsheet data loaded:", sheetData.spreadsheetTitle);
       setData(sheetData);
       
       if (sheetName) {
@@ -95,11 +100,45 @@ export function useSpreadsheet() {
       return sheetData;
     } catch (err: any) {
       const errorMessage = err.message || "Failed to load spreadsheet";
+      console.error("Spreadsheet load error:", errorMessage);
       setError(errorMessage);
       toast.error(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  // Function to check if user is authenticated with Google
+  async function checkGoogleAuth(): Promise<boolean> {
+    // Check for server-side rendering
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    
+    try {
+      // Make a direct API call to check auth status
+      const response = await fetch('/api/auth/check', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        // If authenticated, update localStorage
+        localStorage.setItem('google_auth_status', 'authenticated');
+        // Update state
+        setIsGAuth(true);
+        return true;
+      } else {
+        // If not authenticated, clear localStorage
+        localStorage.removeItem('google_auth_status');
+        // Update state
+        setIsGAuth(false);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking authentication:', error);
+      return false;
     }
   }
 
@@ -116,16 +155,14 @@ export function useSpreadsheet() {
       return true;
     }
     
-    // Then check localStorage
+    // Then check localStorage - this is now just a UI optimization
+    // to avoid flickering while we check the actual auth status
     const authStatus = localStorage.getItem('google_auth_status');
-    console.log('Google auth check:', { 
-      authStatus, 
-      isAuthenticated: authStatus === 'authenticated'
-    });
     
-    // Update our state if needed
-    if (authStatus === 'authenticated' && !isGAuth) {
-      setIsGAuth(true);
+    // Trigger an auth check in the background to verify
+    if (authStatus === 'authenticated') {
+      // Don't await this - let it happen in the background
+      checkGoogleAuth();
     }
     
     return authStatus === 'authenticated';
@@ -161,6 +198,9 @@ export function useSpreadsheet() {
     setAnalysisResult(null);
     
     try {
+      // First ensure tokens are refreshed if needed
+      await refreshTokensIfNeeded();
+      
       const result = await analyzeSpreadsheet(prompt, spreadsheetId, sheetName || selectedSheet || undefined);
       setAnalysisResult(result);
       
@@ -207,6 +247,9 @@ export function useSpreadsheet() {
     setError(null);
     
     try {
+      // First ensure tokens are refreshed if needed
+      await refreshTokensIfNeeded();
+      
       const result = await applyChanges(spreadsheetId, sheetName, analysisResult);
       
       // Store information about this change for potential undo
@@ -245,6 +288,9 @@ export function useSpreadsheet() {
     setError(null);
     
     try {
+      // First ensure tokens are refreshed if needed
+      await refreshTokensIfNeeded();
+      
       const { spreadsheetId, sheetName, range } = lastChangeInfo;
       
       const result = await undoLastChange(spreadsheetId, sheetName, range);
@@ -341,6 +387,7 @@ export function useSpreadsheet() {
     canUndo,
     lastChangeInfo,
     isGoogleAuthenticated,
+    checkGoogleAuth,
     getAuthUrl,
     loadSpreadsheet,
     loadCsvData,
