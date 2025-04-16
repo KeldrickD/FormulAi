@@ -14,6 +14,7 @@ import TeamCollaboration from "@/components/TeamCollaboration";
 import { Toaster, showToast } from "@/components/Toast";
 import WhatsNew from "@/components/WhatsNew";
 import { Suspense } from "react";
+import Image from "next/image";
 
 // Main dashboard content that uses useSearchParams
 function DashboardContent() {
@@ -425,7 +426,15 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center">
-          <Link href="/" className="font-bold text-2xl text-blue-600 mb-4 sm:mb-0">FormulAi</Link>
+          <Link href="/" className="mb-4 sm:mb-0">
+            <Image 
+              src="/images/logo.png" 
+              alt="FormulAi Logo" 
+              width={140} 
+              height={50} 
+              priority
+            />
+          </Link>
           <div className="flex items-center gap-4">
             <WhatsNew />
             <div className="text-sm text-gray-600">

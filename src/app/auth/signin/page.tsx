@@ -6,6 +6,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 // Component that uses useSearchParams
 function SignInForm() {
@@ -91,9 +94,16 @@ export default function SignIn() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/">
-            <h2 className="text-3xl font-bold text-blue-600">FormulAi</h2>
+            <Image
+              src="/images/logo.png"
+              alt="FormulAi Logo"
+              width={180}
+              height={65}
+              className="mx-auto"
+              priority
+            />
           </Link>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-4 text-gray-600">
             Connect your Google account to get started
           </p>
         </div>
