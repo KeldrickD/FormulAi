@@ -5,7 +5,7 @@ export function getGoogleAuthUrl() {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
   const scopes = [
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.readonly'
   ].join(' ');
 

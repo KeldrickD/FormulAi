@@ -168,10 +168,21 @@ function DashboardContent() {
                   </div>
                   <button 
                     onClick={() => {
-                      const spreadsheetId = prompt('Enter Google Sheets URL or ID:');
-                      if (spreadsheetId) {
-                        loadSpreadsheet(spreadsheetId);
+                      const input = prompt('Enter Google Sheets URL or ID:');
+                      if (!input) return;
+                      
+                      // Extract spreadsheet ID from URL if needed
+                      let spreadsheetId = input;
+                      
+                      // Handle URLs in format: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+                      if (input.includes('docs.google.com/spreadsheets/d/')) {
+                        const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                        if (match && match[1]) {
+                          spreadsheetId = match[1];
+                        }
                       }
+                      
+                      loadSpreadsheet(spreadsheetId);
                     }}
                     className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
                   >
@@ -183,16 +194,21 @@ function DashboardContent() {
                   </button>
                 </div>
               ) : (
-                <a
-                  href={getAuthUrl()}
-                  className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
-                >
-                  <span className="flex items-center">
-                    <FileSpreadsheet className="mr-2 h-5 w-5" />
-                    Connect Google Sheets
-                  </span>
-                  <ArrowRight className="h-4 w-4" />
-                </a>
+                <div className="space-y-3">
+                  <a
+                    href={getAuthUrl()}
+                    className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
+                  >
+                    <span className="flex items-center">
+                      <FileSpreadsheet className="mr-2 h-5 w-5" />
+                      Connect Google Sheets
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <div className="p-3 border border-yellow-300 bg-yellow-50 rounded-lg text-xs text-yellow-800">
+                    ⚠️ Google Sheets integration is in beta. If you see a warning screen, click "Advanced" → "Go to getformulai.com". We're awaiting final Google approval. We're awaiting Google verification (4-6 weeks).
+                  </div>
+                </div>
               )}
               <button 
                 className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
