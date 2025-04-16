@@ -1,61 +1,43 @@
-import { google } from 'googleapis';
-import { OAuth2Client } from 'google-auth-library';
-
-// Initialize OAuth2 client
-const oauth2Client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
+// Client-side only functions for Google authentication
 
 // Generate Google OAuth URL
 export function getGoogleAuthUrl() {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
   const scopes = [
     'https://www.googleapis.com/auth/spreadsheets.readonly',
     'https://www.googleapis.com/auth/drive.readonly'
-  ];
+  ].join(' ');
 
-  return oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: scopes,
-    prompt: 'consent'
-  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${clientId}&` +
+    `redirect_uri=${redirectUri}&` +
+    `response_type=code&` +
+    `scope=${scopes}&` +
+    `access_type=offline&` +
+    `prompt=consent`;
 }
 
-// Exchange code for tokens
-export async function getGoogleTokens(code: string) {
-  const { tokens } = await oauth2Client.getToken(code);
-  return tokens;
+// Store tokens in cookie
+export function storeGoogleTokens(tokens: any) {
+  document.cookie = `google_tokens=${encodeURIComponent(JSON.stringify(tokens))}; path=/; max-age=3600`;
 }
 
-// Create Google Sheets client with user's tokens
-export function createGoogleSheetsClient(accessToken: string) {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-  return google.sheets({ version: 'v4', auth });
-}
-
-// Create Google Drive client with user's tokens
-export function createGoogleDriveClient(accessToken: string) {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-  return google.drive({ version: 'v3', auth });
-}
-
-// Verify and refresh tokens if needed
-export async function verifyAndRefreshTokens(tokens: any) {
-  oauth2Client.setCredentials(tokens);
+// Get tokens from cookie
+export function getGoogleTokensFromCookie() {
+  const cookies = document.cookie.split(';');
+  const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('google_tokens='));
+  if (!tokenCookie) return null;
   
   try {
-    // Check if token is expired
-    const { expiry_date } = tokens;
-    if (expiry_date && Date.now() >= expiry_date) {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      return credentials;
-    }
-    return tokens;
+    return JSON.parse(decodeURIComponent(tokenCookie.split('=')[1]));
   } catch (error) {
-    console.error('Error refreshing token:', error);
-    throw error;
+    console.error('Error parsing Google tokens:', error);
+    return null;
   }
+}
+
+// Clear tokens from cookie
+export function clearGoogleTokens() {
+  document.cookie = 'google_tokens=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 } 

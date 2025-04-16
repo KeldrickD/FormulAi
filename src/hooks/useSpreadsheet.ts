@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { analyzeSpreadsheet, applyChanges, fetchSpreadsheetData, undoLastChange } from "../lib/utils/api";
 import { CsvData } from "../types/csv";
-import { verifyAndRefreshTokens, createGoogleSheetsClient, getGoogleAuthUrl } from "../lib/googleAuth";
 
 interface SpreadsheetHistory {
   id: string;
@@ -58,33 +57,38 @@ export function useSpreadsheet() {
       }
 
       // Verify and refresh tokens if needed
-      const validTokens = await verifyAndRefreshTokens(tokens);
-      
-      // Create Google Sheets client with user's tokens
-      const sheets = createGoogleSheetsClient(validTokens.access_token);
-      
-      // Fetch spreadsheet data
-      const [spreadsheet, sheetsList] = await Promise.all([
-        sheets.spreadsheets.get({ spreadsheetId }),
-        sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' })
-      ]);
+      const response = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tokens }),
+      });
 
-      const sheetData: SheetData = {
-        spreadsheetId,
-        spreadsheetTitle: spreadsheet.data.properties?.title || 'Untitled',
-        sheets: sheetsList.data.sheets?.map(sheet => ({
-          sheetId: String(sheet.properties?.sheetId || ''),
-          title: sheet.properties?.title || ''
-        })),
-        sheetName: sheetName || sheetsList.data.sheets?.[0]?.properties?.title || undefined,
-        metadata: {
-          sheetTitle: sheetName || sheetsList.data.sheets?.[0]?.properties?.title || '',
-          headers: [],
-          dataTypes: [],
-          sampleData: []
-        }
-      };
+      if (!response.ok) {
+        throw new Error('Failed to verify tokens');
+      }
 
+      const { tokens: validTokens } = await response.json();
+      
+      // Fetch spreadsheet data using the API route
+      const sheetsResponse = await fetch('/api/sheets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessToken: validTokens.access_token,
+          spreadsheetId,
+          sheetName,
+        }),
+      });
+
+      if (!sheetsResponse.ok) {
+        throw new Error('Failed to fetch spreadsheet');
+      }
+
+      const sheetData = await sheetsResponse.json();
       setData(sheetData);
       
       if (sheetName) {
