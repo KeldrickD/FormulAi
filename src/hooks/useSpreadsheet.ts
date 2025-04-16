@@ -50,16 +50,49 @@ export function useSpreadsheet() {
     setError(null);
     
     try {
-      const data = await fetchSpreadsheetData(spreadsheetId, sheetName);
-      setData(data);
+      // Get user's Google tokens from cookie
+      const tokens = getGoogleTokensFromCookie();
+      if (!tokens) {
+        throw new Error('Not authenticated with Google');
+      }
+
+      // Verify and refresh tokens if needed
+      const validTokens = await verifyAndRefreshTokens(tokens);
+      
+      // Create Google Sheets client with user's tokens
+      const sheets = createGoogleSheetsClient(validTokens.access_token);
+      
+      // Fetch spreadsheet data
+      const [spreadsheet, sheetsList] = await Promise.all([
+        sheets.spreadsheets.get({ spreadsheetId }),
+        sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' })
+      ]);
+
+      const sheetData: SheetData = {
+        spreadsheetId,
+        spreadsheetTitle: spreadsheet.data.properties?.title || 'Untitled',
+        sheets: sheetsList.data.sheets?.map(sheet => ({
+          sheetId: sheet.properties?.sheetId || '',
+          title: sheet.properties?.title || ''
+        })),
+        sheetName: sheetName || sheetsList.data.sheets?.[0]?.properties?.title,
+        metadata: {
+          sheetTitle: sheetName || sheetsList.data.sheets?.[0]?.properties?.title || '',
+          headers: [],
+          dataTypes: [],
+          sampleData: []
+        }
+      };
+
+      setData(sheetData);
       
       if (sheetName) {
         setSelectedSheet(sheetName);
-      } else if (data.sheets && data.sheets.length > 0) {
-        setSelectedSheet(data.sheets[0].title);
+      } else if (sheetData.sheets && sheetData.sheets.length > 0) {
+        setSelectedSheet(sheetData.sheets[0].title);
       }
       
-      return data;
+      return sheetData;
     } catch (err: any) {
       const errorMessage = err.message || "Failed to load spreadsheet";
       setError(errorMessage);
@@ -68,6 +101,30 @@ export function useSpreadsheet() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Function to get Google tokens from cookie
+  function getGoogleTokensFromCookie() {
+    const cookies = document.cookie.split(';');
+    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('google_tokens='));
+    if (!tokenCookie) return null;
+    
+    try {
+      return JSON.parse(decodeURIComponent(tokenCookie.split('=')[1]));
+    } catch (error) {
+      console.error('Error parsing Google tokens:', error);
+      return null;
+    }
+  }
+
+  // Function to check if user is authenticated with Google
+  function isGoogleAuthenticated() {
+    return !!getGoogleTokensFromCookie();
+  }
+
+  // Function to get Google authentication URL
+  function getGoogleAuthUrl() {
+    return getGoogleAuthUrl();
   }
 
   // Function to change the selected sheet
@@ -274,6 +331,8 @@ export function useSpreadsheet() {
     history,
     canUndo,
     lastChangeInfo,
+    isGoogleAuthenticated,
+    getGoogleAuthUrl,
     loadSpreadsheet,
     loadCsvData,
     selectSheet,

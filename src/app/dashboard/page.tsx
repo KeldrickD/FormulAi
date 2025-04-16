@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowRight, Upload, FileSpreadsheet, PlusCircle, History, BarChart, TrendingUp, BookOpen } from "lucide-react";
+import { ArrowRight, Upload, FileSpreadsheet, PlusCircle, History, BarChart, TrendingUp, BookOpen, Check } from "lucide-react";
 import Link from "next/link";
 import { useSpreadsheet } from "@/hooks/useSpreadsheet";
 import SpreadsheetPreview from "@/components/SpreadsheetPreview";
@@ -32,7 +32,10 @@ function DashboardContent() {
     selectSheet,
     analyzeWithPrompt,
     applyAnalysisResult,
-    clearAnalysisResult
+    clearAnalysisResult,
+    isGoogleAuthenticated,
+    getGoogleAuthUrl,
+    clearCurrentData
   } = useSpreadsheet();
   const [showCsvUploader, setShowCsvUploader] = useState(false);
   
@@ -144,18 +147,59 @@ function DashboardContent() {
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Connect</h2>
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm">
-                <span className="flex items-center">
-                  <FileSpreadsheet className="mr-2 h-5 w-5" /> Google Sheets
-                </span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
+              {isGoogleAuthenticated() ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <span className="flex items-center text-green-700">
+                      <Check className="mr-2 h-5 w-5" />
+                      Connected to Google
+                    </span>
+                    <button 
+                      onClick={() => {
+                        // Clear Google tokens
+                        document.cookie = 'google_tokens=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                        clearCurrentData();
+                      }}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const spreadsheetId = prompt('Enter Google Sheets URL or ID:');
+                      if (spreadsheetId) {
+                        loadSpreadsheet(spreadsheetId);
+                      }
+                    }}
+                    className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
+                  >
+                    <span className="flex items-center">
+                      <FileSpreadsheet className="mr-2 h-5 w-5" />
+                      Open Google Sheet
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <a
+                  href={getGoogleAuthUrl()}
+                  className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
+                >
+                  <span className="flex items-center">
+                    <FileSpreadsheet className="mr-2 h-5 w-5" />
+                    Connect Google Sheets
+                  </span>
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+              )}
               <button 
                 className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg font-medium text-sm"
                 onClick={() => setShowCsvUploader(true)}
               >
                 <span className="flex items-center">
-                  <Upload className="mr-2 h-5 w-5" /> Upload CSV
+                  <Upload className="mr-2 h-5 w-5" />
+                  Upload CSV
                 </span>
                 <ArrowRight className="h-4 w-4" />
               </button>
