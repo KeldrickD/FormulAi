@@ -9,13 +9,15 @@ export function getGoogleAuthUrl() {
     'https://www.googleapis.com/auth/drive.readonly'
   ].join(' ');
 
-  return `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${clientId}&` +
-    `redirect_uri=${redirectUri}&` +
-    `response_type=code&` +
-    `scope=${scopes}&` +
-    `access_type=offline&` +
-    `prompt=consent`;
+  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  authUrl.searchParams.append('client_id', clientId || '');
+  authUrl.searchParams.append('redirect_uri', redirectUri || '');
+  authUrl.searchParams.append('response_type', 'code');
+  authUrl.searchParams.append('scope', scopes);
+  authUrl.searchParams.append('access_type', 'offline');
+  authUrl.searchParams.append('prompt', 'consent');
+
+  return authUrl.toString();
 }
 
 // Store tokens in cookie

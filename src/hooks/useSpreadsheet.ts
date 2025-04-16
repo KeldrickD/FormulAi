@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { analyzeSpreadsheet, applyChanges, fetchSpreadsheetData, undoLastChange } from "../lib/utils/api";
 import { CsvData } from "../types/csv";
+import { getGoogleAuthUrl, getGoogleTokensFromCookie } from "../lib/googleAuth";
 
 interface SpreadsheetHistory {
   id: string;
@@ -128,7 +129,7 @@ export function useSpreadsheet() {
   }
 
   // Function to get Google authentication URL
-  function getGoogleAuthUrl() {
+  function getAuthUrl() {
     return getGoogleAuthUrl();
   }
 
@@ -337,7 +338,7 @@ export function useSpreadsheet() {
     canUndo,
     lastChangeInfo,
     isGoogleAuthenticated,
-    getGoogleAuthUrl,
+    getAuthUrl,
     loadSpreadsheet,
     loadCsvData,
     selectSheet,
