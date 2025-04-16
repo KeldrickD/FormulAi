@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { analyzeSpreadsheet, applyChanges, fetchSpreadsheetData, undoLastChange } from "../lib/utils/api";
 import { CsvData } from "../types/csv";
+import { verifyAndRefreshTokens, createGoogleSheetsClient, getGoogleAuthUrl } from "../lib/googleAuth";
 
 interface SpreadsheetHistory {
   id: string;
@@ -72,10 +73,10 @@ export function useSpreadsheet() {
         spreadsheetId,
         spreadsheetTitle: spreadsheet.data.properties?.title || 'Untitled',
         sheets: sheetsList.data.sheets?.map(sheet => ({
-          sheetId: sheet.properties?.sheetId || '',
+          sheetId: String(sheet.properties?.sheetId || ''),
           title: sheet.properties?.title || ''
         })),
-        sheetName: sheetName || sheetsList.data.sheets?.[0]?.properties?.title,
+        sheetName: sheetName || sheetsList.data.sheets?.[0]?.properties?.title || undefined,
         metadata: {
           sheetTitle: sheetName || sheetsList.data.sheets?.[0]?.properties?.title || '',
           headers: [],
