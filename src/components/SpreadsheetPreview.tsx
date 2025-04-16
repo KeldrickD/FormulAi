@@ -112,7 +112,7 @@ export default function SpreadsheetPreview({
             style={{ height: '500px', border: '1px solid #eee', borderRadius: '4px' }}
           >
             <div 
-              className="overflow-x-auto overflow-y-auto absolute inset-0" 
+              className="overflow-auto absolute inset-0" 
               style={{ width: '100%', height: '100%' }}
             >
               <table className="min-w-full divide-y divide-gray-200 table-fixed">
