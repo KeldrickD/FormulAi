@@ -1,16 +1,42 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
-    const { accessToken, spreadsheetId, sheetName } = await request.json();
+    const { spreadsheetId, sheetName } = await request.json();
     
-    if (!accessToken || !spreadsheetId) {
-      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    if (!spreadsheetId) {
+      return NextResponse.json({ error: 'Missing spreadsheet ID' }, { status: 400 });
     }
 
+    // Get tokens from cookies
+    const cookieStore = cookies();
+    const googleTokensCookie = cookieStore.get('google_tokens');
+    
+    if (!googleTokensCookie?.value) {
+      return NextResponse.json({ error: 'Not authenticated with Google' }, { status: 401 });
+    }
+    
+    let tokens;
+    try {
+      tokens = JSON.parse(googleTokensCookie.value);
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid Google token format' }, { status: 401 });
+    }
+    
+    // Set up Google auth with tokens from cookie
     const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
+    auth.setCredentials(tokens);
+    
+    // Check if token is expired
+    const { access_token, expiry_date } = tokens;
+    
+    if (!access_token) {
+      return NextResponse.json({ error: 'No access token available' }, { status: 401 });
+    }
+    
+    // TODO: Handle token refresh if needed
     
     const sheets = google.sheets({ version: 'v4', auth });
     

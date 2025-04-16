@@ -156,10 +156,24 @@ function DashboardContent() {
                       Connected to Google
                     </span>
                     <button 
-                      onClick={() => {
-                        // Clear Google tokens
-                        document.cookie = 'google_tokens=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-                        clearCurrentData();
+                      onClick={async () => {
+                        try {
+                          // Call server-side logout
+                          await fetch('/api/auth/logout', { method: 'POST' });
+                          
+                          // Also clear the localStorage flag
+                          localStorage.removeItem('google_auth_status');
+                          
+                          // Clear current data
+                          clearCurrentData();
+                          
+                          // Show success message
+                          showToast({ message: "Disconnected from Google", type: "success" });
+                          
+                        } catch (error) {
+                          console.error('Error during logout:', error);
+                          showToast({ message: "Failed to disconnect", type: "error" });
+                        }
                       }}
                       className="text-sm text-red-600 hover:text-red-800"
                     >

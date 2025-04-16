@@ -51,26 +51,8 @@ export function useSpreadsheet() {
     setError(null);
     
     try {
-      // Get user's Google tokens from cookie
-      const tokens = getGoogleTokensFromCookie();
-      if (!tokens) {
-        throw new Error('Not authenticated with Google');
-      }
-
-      // Verify and refresh tokens if needed
-      const response = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ tokens }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to verify tokens');
-      }
-
-      const { tokens: validTokens } = await response.json();
+      // No need to get tokens from cookie, as they're httpOnly now
+      // Instead, our API routes will use the cookie directly
       
       // Fetch spreadsheet data using the API route
       const sheetsResponse = await fetch('/api/sheets', {
@@ -79,7 +61,6 @@ export function useSpreadsheet() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          accessToken: validTokens.access_token,
           spreadsheetId,
           sheetName,
         }),
@@ -96,6 +77,11 @@ export function useSpreadsheet() {
         setSelectedSheet(sheetName);
       } else if (sheetData.sheets && sheetData.sheets.length > 0) {
         setSelectedSheet(sheetData.sheets[0].title);
+      }
+      
+      // Set auth status flag in localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('google_auth_status', 'authenticated');
       }
       
       return sheetData;
@@ -125,7 +111,13 @@ export function useSpreadsheet() {
 
   // Function to check if user is authenticated with Google
   function isGoogleAuthenticated() {
-    return !!getGoogleTokensFromCookie();
+    // Since we now use httpOnly cookies set by the server, we need to infer
+    // authentication status differently. We'll check localStorage for a flag
+    // that we'll set after successful redirects.
+    if (typeof window === 'undefined') return false;
+    
+    const authStatus = localStorage.getItem('google_auth_status');
+    return authStatus === 'authenticated';
   }
 
   // Function to get Google authentication URL

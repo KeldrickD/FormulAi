@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { storeGoogleTokens } from '@/lib/googleAuth';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -38,8 +37,19 @@ export async function GET(request: Request) {
       throw new Error('No tokens in response');
     }
     
-    // Store tokens in cookie
-    storeGoogleTokens(responseData.tokens);
+    // Store tokens in cookie using Next.js cookies API
+    const cookieStore = cookies();
+    cookieStore.set({
+      name: 'google_tokens',
+      value: JSON.stringify(responseData.tokens),
+      path: '/',
+      maxAge: 3600, // 1 hour
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax'
+    });
+    
+    console.log('Stored tokens in cookie and redirecting to dashboard');
     
     // Redirect to dashboard
     return NextResponse.redirect(new URL('/dashboard', request.url));
