@@ -107,13 +107,24 @@ export default function SpreadsheetPreview({
       {/* Content */}
       <div className="p-4">
         {view === "table" && (
-          <div 
-            className="relative" 
-            style={{ height: '500px', border: '1px solid #eee', borderRadius: '4px' }}
+          <div
+            className="relative"
+            style={{ 
+              height: '500px', 
+              border: '1px solid #eee', 
+              borderRadius: '4px',
+              maxHeight: '500px'
+            }}
           >
-            <div 
+            <div
               className="overflow-auto absolute inset-0" 
-              style={{ width: '100%', height: '100%' }}
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                display: 'block',
+                overflowY: 'auto',
+                overflowX: 'auto'
+              }}
             >
               <table className="min-w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-gray-50 sticky top-0 z-10">
@@ -144,7 +155,7 @@ export default function SpreadsheetPreview({
                     // Skip the first row if it contains headers (when showing gridData)
                     (data?.gridData ? displayData.slice(1) : displayData).map((row: any, rowIndex: number) => (
                       <tr key={rowIndex} className="hover:bg-gray-50">
-                        {Array.isArray(row) ? 
+                        {Array.isArray(row) ?
                           // Handle array format
                           row.map((cell: any, cellIndex: number) => (
                             <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
