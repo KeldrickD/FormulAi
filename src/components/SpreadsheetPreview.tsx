@@ -107,70 +107,78 @@ export default function SpreadsheetPreview({
       {/* Content */}
       <div className="p-4">
         {view === "table" && (
-          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr>
-                  {metadata?.headers ? (
-                    metadata.headers.map((header, index) => (
-                      <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {header}
-                      </th>
+          <div 
+            className="relative" 
+            style={{ height: '500px', border: '1px solid #eee', borderRadius: '4px' }}
+          >
+            <div 
+              className="overflow-x-auto overflow-y-auto absolute inset-0" 
+              style={{ width: '100%', height: '100%' }}
+            >
+              <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    {metadata?.headers ? (
+                      metadata.headers.map((header, index) => (
+                        <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {header}
+                        </th>
+                      ))
+                    ) : (
+                      <>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Column A
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Column B
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Column C
+                        </th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {displayData ? (
+                    // Skip the first row if it contains headers (when showing gridData)
+                    (data?.gridData ? displayData.slice(1) : displayData).map((row: any, rowIndex: number) => (
+                      <tr key={rowIndex} className="hover:bg-gray-50">
+                        {Array.isArray(row) ? 
+                          // Handle array format
+                          row.map((cell: any, cellIndex: number) => (
+                            <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {String(cell)}
+                            </td>
+                          ))
+                          :
+                          // Handle object format
+                          metadata?.headers?.map((header: string, cellIndex: number) => (
+                            <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {String(row[header] || '')}
+                            </td>
+                          ))
+                        }
+                      </tr>
                     ))
                   ) : (
-                    <>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Column A
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Column B
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Column C
-                      </th>
-                    </>
+                    [1, 2, 3, 4, 5].map((row) => (
+                      <tr key={row} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          Sample data A{row}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          Sample data B{row}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          Sample data C{row}
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {displayData ? (
-                  // Skip the first row if it contains headers (when showing gridData)
-                  (data?.gridData ? displayData.slice(1) : displayData).map((row, rowIndex) => (
-                    <tr key={rowIndex} className="hover:bg-gray-50">
-                      {Array.isArray(row) ? 
-                        // Handle array format
-                        row.map((cell, cellIndex) => (
-                          <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {String(cell)}
-                          </td>
-                        ))
-                        :
-                        // Handle object format
-                        metadata?.headers?.map((header, cellIndex) => (
-                          <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {String(row[header] || '')}
-                          </td>
-                        ))
-                      }
-                    </tr>
-                  ))
-                ) : (
-                  [1, 2, 3, 4, 5].map((row) => (
-                    <tr key={row} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        Sample data A{row}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        Sample data B{row}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        Sample data C{row}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
