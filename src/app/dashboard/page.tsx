@@ -101,6 +101,13 @@ function DashboardContent() {
           // Show success toast
           showToast({ message: "Connected to Google Sheets successfully", type: "success" });
           
+          // Try loading a default spreadsheet if one is available
+          const testSpreadsheetId = '13l6YSycQbnU-0Y-4TOA_VoN6ABDbcd_jFJ03r6JXA9M'; // This is the ID from console logs
+          if (!spreadsheetId) {
+            console.log('Attempting to load default spreadsheet:', testSpreadsheetId);
+            loadSpreadsheet(testSpreadsheetId);
+          }
+          
           // Reload page after a slight delay to apply authentication state
           setTimeout(() => {
             console.log('Reloading page to apply authentication state');
@@ -116,10 +123,33 @@ function DashboardContent() {
       });
     }
     
+    // Try to load spreadsheet from URL parameter
     if (spreadsheetId) {
-      loadSpreadsheet(spreadsheetId, sheetName || undefined);
+      console.log('Loading spreadsheet from URL parameter:', spreadsheetId);
+      loadSpreadsheet(spreadsheetId, sheetName || undefined)
+        .then(result => {
+          if (!result) {
+            console.error('Failed to load spreadsheet from URL parameter');
+            showToast({ message: "Failed to load spreadsheet. Please try again.", type: "error" });
+          }
+        })
+        .catch(error => {
+          console.error('Error loading spreadsheet:', error);
+          showToast({ message: "Error loading spreadsheet: " + error.message, type: "error" });
+        });
+    } 
+    // If no spreadsheet in URL and we're authenticated, try loading a default spreadsheet
+    else if (isGoogleAuthenticated() || directAuth) {
+      // Try loading a default spreadsheet
+      const testSpreadsheetId = '13l6YSycQbnU-0Y-4TOA_VoN6ABDbcd_jFJ03r6JXA9M'; // This is the ID from console logs
+      console.log('Attempting to load default spreadsheet:', testSpreadsheetId);
+      loadSpreadsheet(testSpreadsheetId)
+        .catch(error => {
+          console.error('Error loading default spreadsheet:', error);
+          // Don't show an error toast here as this is a fallback attempt
+        });
     }
-  }, [searchParams]);
+  }, [searchParams, loadSpreadsheet, isGoogleAuthenticated, directAuth]);
 
   // Add debug log to check auth state
   useEffect(() => {
@@ -128,6 +158,18 @@ function DashboardContent() {
       localStorage: typeof window !== 'undefined' ? localStorage.getItem('google_auth_status') : null
     });
   }, [isGoogleAuthenticated]);
+
+  // Inside the DashboardContent component, add a debugging log for data state
+  useEffect(() => {
+    if (data) {
+      console.log('Dashboard data state:', {
+        hasData: !!data,
+        spreadsheetTitle: data.spreadsheetTitle,
+        sheetCount: data.sheets?.length,
+        selectedSheet: selectedSheet
+      });
+    }
+  }, [data, selectedSheet]);
 
   // Update URL when selecting a sheet
   const handleSelectSheet = (sheetId: string) => {
@@ -388,6 +430,14 @@ function DashboardContent() {
 
         {/* Main panel */}
         <div className="lg:col-span-3 space-y-6">
+          {/* Debug info - Remove in production */}
+          <div className="bg-gray-100 p-3 rounded text-xs text-gray-700 font-mono">
+            <div>Auth: {(isGoogleAuthenticated() || directAuth) ? 'true' : 'false'}</div>
+            <div>Has Data: {data ? 'true' : 'false'}</div>
+            <div>Selected Sheet: {selectedSheet || 'none'}</div>
+            {data && <div>Spreadsheet: {data.spreadsheetTitle}</div>}
+          </div>
+
           {/* CSV uploader modal */}
           {showCsvUploader && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -416,13 +466,76 @@ function DashboardContent() {
               />
               <button
                 onClick={handleAnalyze}
-                disabled={isLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                disabled={isLoading || !data}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? "Analyzing..." : "Analyze"}
               </button>
             </div>
           </div>
+
+          {/* Empty state when no data is loaded */}
+          {!data && !isLoading && (
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+              <div className="py-8">
+                <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No data to display</h3>
+                <p className="text-gray-500 mb-6">Connect to Google Sheets or upload a CSV file to get started.</p>
+                
+                <div className="flex justify-center space-x-4">
+                  {(isGoogleAuthenticated() || directAuth) ? (
+                    <button 
+                      onClick={() => {
+                        const input = prompt('Enter Google Sheets URL or ID:');
+                        if (!input) return;
+                        
+                        // Extract spreadsheet ID from URL if needed
+                        let spreadsheetId = input;
+                        
+                        // Handle URLs in format: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+                        if (input.includes('docs.google.com/spreadsheets/d/')) {
+                          const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                          if (match && match[1]) {
+                            spreadsheetId = match[1];
+                          }
+                        }
+                        
+                        loadSpreadsheet(spreadsheetId);
+                      }}
+                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium"
+                    >
+                      Open Google Sheet
+                    </button>
+                  ) : (
+                    <a
+                      href={getAuthUrl()}
+                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium"
+                    >
+                      Connect Google Sheets
+                    </a>
+                  )}
+                  
+                  <button 
+                    onClick={() => setShowCsvUploader(true)}
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium"
+                  >
+                    Upload CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isLoading && !data && (
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+              <div className="py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto mb-4"></div>
+                <h3 className="text-lg font-medium text-gray-900">Loading data...</h3>
+                <p className="text-gray-500">Please wait while we load your spreadsheet.</p>
+              </div>
+            </div>
+          )}
 
           {/* Preview current sheet */}
           {data && selectedSheet && (

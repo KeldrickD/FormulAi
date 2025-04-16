@@ -29,7 +29,10 @@ export async function POST(request: Request) {
     
     if (!tokensCookie || !tokensCookie.value) {
       console.error('No Google tokens found in cookies');
-      return NextResponse.json({ error: 'Not authenticated with Google' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Not authenticated with Google',
+        status: 'auth_error'
+      }, { status: 401 });
     }
 
     let tokens;
@@ -38,7 +41,10 @@ export async function POST(request: Request) {
       console.log('Retrieved tokens from cookies:', Object.keys(tokens).join(', '));
     } catch (error) {
       console.error('Failed to parse tokens from cookie:', error);
-      return NextResponse.json({ error: 'Invalid authentication tokens' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Invalid authentication tokens',
+        status: 'auth_error'
+      }, { status: 401 });
     }
 
     // Set up Google Sheets API
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
 
     // Get sheet list
     const sheetList = spreadsheet.data.sheets?.map(sheet => ({
-      id: sheet.properties?.sheetId,
+      sheetId: sheet.properties?.sheetId,
       title: sheet.properties?.title,
     })) || [];
 
@@ -76,7 +82,11 @@ export async function POST(request: Request) {
     }
 
     if (!targetSheet) {
-      return NextResponse.json({ error: 'No sheets found in spreadsheet' }, { status: 404 });
+      return NextResponse.json({ 
+        error: 'No sheets found in spreadsheet',
+        spreadsheetTitle: spreadsheet.data.properties?.title,
+        sheets: []
+      }, { status: 404 });
     }
 
     // Get grid data
@@ -136,12 +146,17 @@ export async function POST(request: Request) {
     
     // Check if this is an auth error
     if (error.code === 401 || error.message?.includes('auth')) {
-      return NextResponse.json({ error: 'Authentication failed', details: error.message }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Authentication failed', 
+        details: error.message,
+        status: 'auth_error'
+      }, { status: 401 });
     }
     
     return NextResponse.json({ 
       error: 'Failed to access Google Sheets',
-      details: error.message
+      details: error.message,
+      status: 'api_error'
     }, { status: 500 });
   }
 } 

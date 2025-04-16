@@ -79,15 +79,40 @@ export function useSpreadsheet() {
 
       if (!sheetsResponse.ok) {
         const errorData = await sheetsResponse.json();
+        console.error("API error response:", errorData);
         throw new Error(errorData.error || 'Failed to fetch spreadsheet');
       }
 
       const sheetData = await sheetsResponse.json();
       console.log("Spreadsheet data loaded:", sheetData.spreadsheetTitle);
-      setData(sheetData);
+      console.log("Received data structure:", {
+        hasSheets: !!sheetData.sheets,
+        sheetCount: sheetData.sheets?.length || 0,
+        headers: sheetData.headers?.length || 0
+      });
       
+      // Process the received data into the proper shape
+      const processedData: SheetData = {
+        spreadsheetId,
+        spreadsheetTitle: sheetData.spreadsheetTitle || 'Unnamed Spreadsheet',
+        sheets: sheetData.sheets || [],
+        metadata: {
+          sheetTitle: sheetName || sheetData.currentSheet?.title || 'Sheet1',
+          headers: sheetData.headers || [],
+          dataTypes: sheetData.types || [],
+          sampleData: sheetData.values || []
+        }
+      };
+      
+      // Set the data state
+      setData(processedData);
+      console.log("State updated with sheet data:", processedData.spreadsheetTitle);
+      
+      // Set selected sheet
       if (sheetName) {
         setSelectedSheet(sheetName);
+      } else if (sheetData.currentSheet?.title) {
+        setSelectedSheet(sheetData.currentSheet.title);
       } else if (sheetData.sheets && sheetData.sheets.length > 0) {
         setSelectedSheet(sheetData.sheets[0].title);
       }
@@ -95,9 +120,10 @@ export function useSpreadsheet() {
       // Set auth status flag in localStorage
       if (typeof window !== 'undefined') {
         localStorage.setItem('google_auth_status', 'authenticated');
+        setIsGAuth(true);
       }
       
-      return sheetData;
+      return processedData;
     } catch (err: any) {
       const errorMessage = err.message || "Failed to load spreadsheet";
       console.error("Spreadsheet load error:", errorMessage);
